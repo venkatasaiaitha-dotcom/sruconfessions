@@ -33,18 +33,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
-// API Routes: mount both /api/* and bare routes for Vercel/serverless compatibility
+// API Routes: mount for localhost, Vercel, and Netlify function paths
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
+app.use('/.netlify/functions/api/auth', authRoutes);
 
 app.use('/api/confessions', confessionRoutes);
 app.use('/confessions', confessionRoutes);
+app.use('/.netlify/functions/api/confessions', confessionRoutes);
 
 app.use('/api/admin', adminRoutes);
 app.use('/admin', adminRoutes);
+app.use('/.netlify/functions/api/admin', adminRoutes);
 
 // Health Check
-app.get(['/api/health', '/health'], (req, res) => {
+app.get(['/api/health', '/health', '/.netlify/functions/api/health'], (req, res) => {
     res.json({
         status: 'ok',
         database: db.getDriver(),
@@ -55,7 +58,7 @@ app.get(['/api/health', '/health'], (req, res) => {
 
 // Fallback for unmatched API routes
 app.use((req, res, next) => {
-    if (req.path.startsWith('/api/')) {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/.netlify/functions/api/')) {
         return res.status(404).json({ error: 'API route not found' });
     }
     next();
@@ -72,8 +75,9 @@ app.use((err, req, res, next) => {
 // Initialize DB on boot
 db.initDb().catch(err => console.error('DB init error:', err));
 
-// Start listening if not handled by serverless wrapper
-if (!process.env.VERCEL) {
+// Start listening if not running inside serverless (Netlify / Vercel / AWS Lambda)
+const isServerlessEnvironment = Boolean(process.env.NETLIFY || process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+if (!isServerlessEnvironment) {
     app.listen(PORT, () => {
         console.log('====================================================');
         console.log(`🚀 SRU Confessions Server is running!`);
