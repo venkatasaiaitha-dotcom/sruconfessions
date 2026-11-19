@@ -1,137 +1,65 @@
-# 💬 SRU Confessions - Full Stack Web Application & MySQL Database
+# 💬 SRU Confessions - Full Stack Web Application with Supabase
 
-A secure, anonymous confession platform for SRU students built with **Node.js**, **Express**, and **MySQL** (with **MySQL Workbench** integration).
-
----
-
-## 🐬 MySQL Database & MySQL Workbench Setup
-
-### Step 1: Open and Run the Database Script in MySQL Workbench
-1. Open **MySQL Workbench** on your machine.
-2. Click on your local MySQL connection (e.g. `Local instance MySQL80` or `root@localhost:3306`) and log in.
-3. In the top menu, go to:
-   **File** ➔ **Open SQL Script...** (or press `Ctrl + Shift + O`).
-4. Select the file:
-   `schema.sql` located inside the project folder:
-   `c:\Users\AITHA VENKATA SAI\OneDrive\Desktop\venkata sai\sru confessions01\schema.sql`
-5. Click the **⚡ Lightning Bolt (Execute)** button in the query toolbar (or press `Ctrl + Shift + Enter`).
-6. In the bottom "Output" panel, you will see green checkmarks:
-   - Database `sru_confessions` created.
-   - Tables `confessions` and `admins` created.
-   - Initial admin account (`admin` / `sru2024`) seeded.
-   - Sample confessions inserted for testing.
+An anonymous confession platform for SRU students built with **Node.js**, **Express**, and **Supabase (Cloud PostgreSQL)**.
 
 ---
 
-### Step 2: Connect the Node.js Backend to MySQL
-Open the `.env` file in the project folder and set your MySQL Workbench password:
+## ⚡ Supabase Setup Guide (Takes 2 Minutes)
 
+### Step 1: Create a Free Supabase Project
+1. Go to [https://supabase.com](https://supabase.com) and sign in with GitHub.
+2. Click **"New project"**.
+3. Choose a name (e.g. `sru-confessions`), set a database password, and click **"Create new project"**.
+
+---
+
+### Step 2: Create Tables in Supabase
+1. In your Supabase Project Dashboard, click **"SQL Editor"** (terminal icon in the left menu).
+2. Click **"+ New query"**.
+3. Copy and paste the entire contents of [supabase_schema.sql](file:///c:/Users/AITHA%20VENKATA%20SAI/OneDrive/Desktop/venkata%20sai/sru%20confessions01/supabase_schema.sql) into the editor.
+4. Click **"Run"** (or press `Ctrl + Enter`).
+5. You will see `Success. No rows returned.`
+   - Your `confessions` and `admins` tables are now created with Row Level Security policies!
+
+---
+
+### Step 3: Get Your Supabase API Keys
+1. In the Supabase left sidebar, click **Project Settings** (gear icon) ➔ **API**.
+2. Copy:
+   - **Project URL** (e.g. `https://xyzprojectid.supabase.co`)
+   - **Project API Keys** ➔ **`anon` `public`** key (or `service_role` secret key).
+
+---
+
+### Step 4: Add Keys to Netlify (For Live Cloud Deployment)
+1. Open your [Netlify Dashboard](https://app.netlify.com).
+2. Go to your site ➔ **Site configuration** ➔ **Environment variables**.
+3. Click **"Add a variable"**:
+   - Key: `SUPABASE_URL` | Value: `your-project-url`
+   - Key: `SUPABASE_KEY` | Value: `your-anon-or-service-key`
+4. Click **Save**.
+5. Go to the **Deploys** tab ➔ **Trigger deploy** ➔ **Deploy site**.
+
+---
+
+### Step 5: Add Keys to `.env` (For Local Development)
+Open `.env` in the project root:
 ```env
-DB_TYPE=mysql
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password_here
-DB_NAME=sru_confessions
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_KEY=your-supabase-api-key
 ```
 
-> **Note:** If `DB_PASSWORD` is not configured or MySQL is unreachable, the server will automatically fall back to the built-in local SQLite database so the app never crashes.
-
----
-
-## 🔍 Useful Queries in MySQL Workbench
-
-Once you execute `schema.sql`, you can open a new Query tab (`Ctrl + T`) in MySQL Workbench and run these queries:
-
-### 1. View all confessions (newest first)
-```sql
-USE sru_confessions;
-SELECT id, confession, status, created_at FROM confessions ORDER BY id DESC;
-```
-
-### 2. View confession statistics (Total and Today)
-```sql
-SELECT 
-    COUNT(*) AS total_confessions,
-    COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) AS today_confessions
-FROM confessions;
-```
-
-### 3. Search confessions by keyword
-```sql
-SELECT * FROM confessions WHERE confession LIKE '%library%' ORDER BY id DESC;
-```
-
-### 4. Delete an inappropriate confession
-```sql
-DELETE FROM confessions WHERE id = 1;
-```
-
----
-
-## 📁 Project Architecture
-
-```
-sru confessions01/
-├── schema.sql             # MySQL Workbench SQL script (creates DB, tables, seeds data)
-├── server.js              # Express web server & API router
-├── db.js                  # Unified database adapter (MySQL & SQLite fallback)
-├── middleware/
-│   ├── auth.js            # JWT admin verification middleware
-│   └── rateLimiter.js     # Anti-spam & brute force protection
-├── routes/
-│   ├── confessions.js     # Public submission endpoint (POST /api/confessions)
-│   ├── auth.js            # Admin login, session verify, password change
-│   └── admin.js           # Admin moderation & confession deletion
-├── public/                # Static frontend assets served by Express
-│   ├── index.html         # User view, Admin view, & Login modal
-│   ├── css/
-│   │   └── style.css      # Responsive styles & modern UI
-│   └── js/
-│       └── script.js      # Frontend API integration & state management
-├── .env                   # Configuration file (MySQL credentials, JWT secret)
-├── .env.example           # Example configuration template
-├── package.json           # Dependencies and scripts
-└── README.md              # Full documentation
-```
-
----
-
-## 🚀 Running the Project
-
-### 1. Install Dependencies
-```bash
-npm install
-```
-
-### 2. Start the Server
+Run locally:
 ```bash
 npm start
 ```
-*(or run `npm run dev` for auto-reloading development mode)*
-
-Open your browser and visit:
-👉 **http://localhost:5000**
 
 ---
 
-## 🔑 Default Admin Credentials
+## 📊 Viewing Confessions in Supabase Dashboard
 
-- **Username**: `admin`
-- **Password**: `sru2024`
-
-*(Hashed securely with bcrypt in the `admins` table)*
-
----
-
-## 📡 API Reference
-
-| Method | Endpoint | Access | Description |
-|---|---|---|---|
-| `POST` | `/api/confessions` | Public | Submit an anonymous confession |
-| `POST` | `/api/auth/login` | Public | Admin login, returns JWT token |
-| `GET` | `/api/auth/verify` | Admin | Validate current JWT session |
-| `GET` | `/api/admin/confessions` | Admin | List confessions (with `?search=` and pagination) |
-| `DELETE` | `/api/admin/confessions/:id` | Admin | Delete a confession by ID |
-| `GET` | `/api/admin/stats` | Admin | Confession count statistics |
-| `GET` | `/api/health` | Public | Server uptime & active database engine |
+Whenever anyone submits a confession on your site:
+1. Open [Supabase Dashboard](https://supabase.com/dashboard).
+2. Click **"Table Editor"** (spreadsheet icon on the left).
+3. Click on the **`confessions`** table.
+4. All submitted confessions will appear live with exact date, time, and content!
