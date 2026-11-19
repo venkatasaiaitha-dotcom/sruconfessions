@@ -15,6 +15,20 @@ function escapeHTML(str) {
         .replace(/'/g, '&#039;');
 }
 
+// Helper: Safely parse response without crashing on non-JSON
+async function parseResponse(res) {
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        try {
+            return await res.json();
+        } catch {
+            return { error: `Server returned invalid JSON (HTTP ${res.status})` };
+        }
+    }
+    const text = await res.text();
+    return { error: text || `Server error (${res.status} ${res.statusText})` };
+}
+
 // Helper: Display Alert Toast inside Form
 function showAlert(formElement, message, isSuccess = true) {
     // Remove any existing messages
@@ -29,7 +43,7 @@ function showAlert(formElement, message, isSuccess = true) {
 
     setTimeout(() => {
         msgDiv.remove();
-    }, 4000);
+    }, 5000);
 }
 
 // -------------------------------------------------------------------
@@ -76,10 +90,10 @@ if (feedbackForm) {
                 body: JSON.stringify({ confession: text })
             });
 
-            const data = await res.json();
+            const data = await parseResponse(res);
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to submit confession.');
+                throw new Error(data.error || `Error ${res.status}: Failed to submit confession.`);
             }
 
             showAlert(feedbackForm, '✨ Confession submitted successfully and anonymously!', true);
@@ -124,7 +138,7 @@ if (adminLoginForm) {
                 body: JSON.stringify({ username, password })
             });
 
-            const data = await res.json();
+            const data = await parseResponse(res);
 
             if (!res.ok) {
                 throw new Error(data.error || 'Invalid credentials!');
@@ -201,7 +215,7 @@ async function loadAdminConfessions(query = currentSearch) {
             return;
         }
 
-        const data = await res.json();
+        const data = await parseResponse(res);
         if (!res.ok) throw new Error(data.error || 'Failed to fetch confessions.');
 
         const confessions = data.confessions || [];
@@ -290,7 +304,7 @@ async function deleteConfession(id) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        const data = await res.json();
+        const data = await parseResponse(res);
         if (!res.ok) throw new Error(data.error || 'Failed to delete confession.');
 
         // Smoothly remove row or refresh table

@@ -25,7 +25,7 @@ app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Trust proxy for rate limiting if behind reverse proxy
+// Trust proxy for rate limiting if behind reverse proxy / cloud load balancer
 app.set('trust proxy', 1);
 
 // Static Assets
@@ -64,22 +64,18 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start Server after Database Initialization
-async function startServer() {
-    try {
-        await db.initDb();
-        app.listen(PORT, () => {
-            console.log('====================================================');
-            console.log(`🚀 SRU Confessions Server is running!`);
-            console.log(`🌐 Local URL: http://localhost:${PORT}`);
-            console.log(`📊 Database Engine: ${db.getDriver() ? db.getDriver().toUpperCase() : 'UNKNOWN'}`);
-            console.log(`📊 Admin Credentials: ${process.env.ADMIN_USERNAME || 'admin'} / [configured in .env]`);
-            console.log('====================================================');
-        });
-    } catch (err) {
-        console.error('Failed to initialize server:', err);
-        process.exit(1);
-    }
+// Initialize DB on boot
+db.initDb().catch(err => console.error('DB init error:', err));
+
+// Start listening if not handled by serverless wrapper
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log('====================================================');
+        console.log(`🚀 SRU Confessions Server is running!`);
+        console.log(`🌐 Local URL: http://localhost:${PORT}`);
+        console.log(`📊 Database Engine: ${db.getDriver() ? db.getDriver().toUpperCase() : 'INITIALIZING'}`);
+        console.log('====================================================');
+    });
 }
 
-startServer();
+module.exports = app;
