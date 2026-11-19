@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRU Confessions</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="public/css/style.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="admin-access">
+        <button class="admin-btn" onclick="openAdminModal()">
+            🔒 Admin Access
+        </button>
+    </div>
+
+    <div class="container">
+
+        <!-- USER VIEW -->
+        <div id="userView">
+
+            <header>
+                <h1>SRU Confessions</h1>
+                <p class="subtitle">Share Your Thoughts Anonymously</p>
+            </header>
+
+            <div class="feedback-form">
+
+                <form id="feedbackForm">
+
+                    <div class="form-group">
+                        <label for="confession">Your Confession</label>
+
+                        <textarea
+                            id="confession"
+                            placeholder="Share your thoughts anonymously... What's on your mind?"
+                            maxlength="3000"
+                            required
+                        ></textarea>
+
+                        <div class="form-footer">
+                            <p class="privacy-text">
+                                🔒 Completely anonymous & private. No IP or identity is stored.
+                            </p>
+                            <span id="charCount" class="char-count">0 / 3000</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        Submit Confession
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        <!-- ADMIN VIEW -->
+        <div id="adminView" class="admin-panel">
+
+            <header>
+                <h1>Admin Panel</h1>
+                <p class="subtitle">Confession Moderation & Management</p>
+            </header>
+
+            <div class="feedback-table">
+
+                <div class="admin-header-actions">
+                    <div class="admin-stats">
+                        <div class="stat-pill">
+                            Total: <span id="totalConfessionsCount">0</span>
+                        </div>
+                        <div class="stat-pill">
+                            Today: <span id="todayConfessionsCount">0</span>
+                        </div>
+                    </div>
+
+                    <div class="admin-controls">
+                        <input
+                            type="text"
+                            placeholder="🔍 Search confessions..."
+                            class="search-input"
+                            oninput="handleSearchInput(event)"
+                        >
+                        <button class="refresh-btn" onclick="refreshConfessions()" title="Refresh Confessions">
+                            ↻ Refresh
+                        </button>
+                        <button class="logout-btn" onclick="logout()">
+                            Logout
+                        </button>
+                    </div>
+                </div>
+
+                <div id="feedbackTable">
+                    <!-- Dynamic Table Loads Here -->
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div id="adminModal" class="modal">
+
+        <div class="modal-content">
+
+            <span class="close-btn" onclick="closeAdminModal()">
+                &times;
+            </span>
+
+            <h2 class="modal-title">Admin Login</h2>
+
+            <form id="adminLoginForm">
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter admin username" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter admin password" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    Login
+                </button>
+
+            </form>
+
+            <div id="loginError" class="login-error"></div>
+
+        </div>
+
+    </div>
+
+    <!-- Client Script -->
+    <script src="public/js/script.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
