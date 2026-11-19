@@ -17,16 +17,21 @@ function initSupabase() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (supabaseUrl && supabaseKey && supabaseUrl !== 'your_supabase_project_url') {
-        const { createClient } = require('@supabase/supabase-js');
-        supabaseClient = createClient(supabaseUrl, supabaseKey, {
-            auth: {
-                persistSession: false
-            }
-        });
-        dbDriver = 'supabase';
-        console.log(`✅ [Database] Connected to Supabase Cloud Database (${supabaseUrl}).`);
-        return true;
+    if (supabaseUrl && supabaseKey && supabaseUrl !== 'your_supabase_project_url' && !supabaseUrl.includes('EXAMPLE_KEY')) {
+        try {
+            const { createClient } = require('@supabase/supabase-js');
+            supabaseClient = createClient(supabaseUrl.trim(), supabaseKey.trim(), {
+                auth: {
+                    persistSession: false
+                }
+            });
+            dbDriver = 'supabase';
+            console.log(`✅ [Database] Initialized Supabase client for (${supabaseUrl}).`);
+            return true;
+        } catch (err) {
+            console.error('[Database] Failed to initialize Supabase client:', err.message);
+            return false;
+        }
     }
 
     return false;
@@ -44,8 +49,6 @@ async function initDb() {
     if (!connected) {
         dbDriver = 'memory';
         console.log('⚠️ [Database] SUPABASE_URL / SUPABASE_KEY not configured in .env yet.');
-        console.log('👉 Add your Supabase Project URL and API Key in .env (or Netlify Environment Variables).');
-        console.log('👉 Using in-memory fallback store until Supabase credentials are provided.');
     }
 
     await seedAdmin();
@@ -59,13 +62,13 @@ async function seedAdmin() {
 
     try {
         if (dbDriver === 'supabase' && supabaseClient) {
-            const { data } = await supabaseClient
+            const { data, error } = await supabaseClient
                 .from('admins')
                 .select('id')
                 .eq('username', adminUser)
                 .maybeSingle();
 
-            if (!data) {
+            if (!error && !data) {
                 const hash = bcrypt.hashSync(adminPass, 10);
                 await supabaseClient.from('admins').insert([
                     { username: adminUser, password_hash: hash }
@@ -102,13 +105,23 @@ const dbService = {
             const { data, error } = await supabaseClient
                 .from('confessions')
                 .insert([{ confession, ip_hash: ipHash }])
-                .select('id, confession, created_at, status')
-                .single();
+                .select('id, confession, created_at, status');
 
             if (error) {
-                throw new Error(`Supabase Insert Error: ${error.message}`);
+                console.error('[Supabase Insert Error]:', error);
+                throw new Error(`Supabase Error: ${error.message}${error.hint ? ' - ' + error.hint : ''}. Please make sure you executed supabase_schema.sql in the Supabase SQL Editor.`);
             }
-            return data;
+
+            if (data && data.length > 0) {
+                return data[0];
+            }
+
+            return {
+                id: Date.now(),
+                confession,
+                status: 'approved',
+                created_at: new Date().toISOString()
+            };
         } else {
             const item = {
                 id: memoryStore.nextConfessionId++,

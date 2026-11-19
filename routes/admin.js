@@ -50,7 +50,7 @@ router.get('/confessions', async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching confessions for admin:', err);
-        res.status(500).json({ error: 'Failed to retrieve confessions.' });
+        res.status(500).json({ error: err.message || 'Failed to retrieve confessions.' });
     }
 });
 
@@ -61,7 +61,7 @@ router.get('/stats', async (req, res) => {
         res.json({ success: true, stats });
     } catch (err) {
         console.error('Error fetching stats:', err);
-        res.status(500).json({ error: 'Failed to retrieve stats.' });
+        res.status(500).json({ error: err.message || 'Failed to retrieve stats.' });
     }
 });
 
@@ -89,7 +89,7 @@ router.delete('/confessions/:id', async (req, res) => {
         });
     } catch (err) {
         console.error('Error deleting confession:', err);
-        res.status(500).json({ error: 'Failed to delete confession.' });
+        res.status(500).json({ error: err.message || 'Failed to delete confession.' });
     }
 });
 

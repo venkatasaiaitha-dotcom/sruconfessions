@@ -40,13 +40,13 @@ router.post('/', confessionLimiter, async (req, res) => {
             success: true,
             message: 'Confession submitted successfully!',
             confession: {
-                id: created.id,
-                created_at: created.created_at
+                id: created ? created.id : Date.now(),
+                created_at: created ? created.created_at : new Date().toISOString()
             }
         });
     } catch (err) {
         console.error('Error submitting confession:', err);
-        res.status(500).json({ error: 'An error occurred while submitting your confession.' });
+        res.status(500).json({ error: err.message || 'An error occurred while submitting your confession.' });
     }
 });
 
