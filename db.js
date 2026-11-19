@@ -94,9 +94,38 @@ async function seedAdmin() {
 }
 
 // ====================================================================
-// 3. UNIFIED DATABASE SERVICES
+// 3. UNIFIED DATABASE SERVICES & STORAGE BUCKET INTEGRATION
 // ====================================================================
 const dbService = {
+    // Helper: Upload confession JSON to Supabase Storage Bucket
+    async saveConfessionToBucket(item) {
+        if (!supabaseClient || !item || !item.id) return;
+        try {
+            const fileName = `confession_${item.id}.json`;
+            const fileBody = JSON.stringify(item, null, 2);
+            await supabaseClient.storage
+                .from('confessions')
+                .upload(fileName, fileBody, {
+                    contentType: 'application/json',
+                    upsert: true
+                });
+        } catch (err) {
+            console.warn('[Storage Bucket] Could not upload to bucket:', err.message);
+        }
+    },
+
+    // Helper: Remove confession from Supabase Storage Bucket
+    async deleteConfessionFromBucket(id) {
+        if (!supabaseClient || !id) return;
+        try {
+            await supabaseClient.storage
+                .from('confessions')
+                .remove([`confession_${id}.json`]);
+        } catch (err) {
+            console.warn('[Storage Bucket] Could not delete from bucket:', err.message);
+        }
+    },
+
     // Add Confession
     async createConfession(confession, ipHash = null) {
         await initDb();
@@ -109,19 +138,20 @@ const dbService = {
 
             if (error) {
                 console.error('[Supabase Insert Error]:', error);
-                throw new Error(`Supabase Error: ${error.message}${error.hint ? ' - ' + error.hint : ''}. Please make sure you executed supabase_schema.sql in the Supabase SQL Editor.`);
+                throw new Error(`Supabase Error: ${error.message}${error.hint ? ' - ' + error.hint : ''}. Please run the SQL permissions in the Supabase SQL Editor.`);
             }
 
-            if (data && data.length > 0) {
-                return data[0];
-            }
-
-            return {
+            const item = (data && data.length > 0) ? data[0] : {
                 id: Date.now(),
                 confession,
                 status: 'approved',
                 created_at: new Date().toISOString()
             };
+
+            // Store copy in Supabase Storage Bucket
+            this.saveConfessionToBucket(item).catch(() => {});
+
+            return item;
         } else {
             const item = {
                 id: memoryStore.nextConfessionId++,
@@ -190,6 +220,9 @@ const dbService = {
         id = Number(id);
 
         if (dbDriver === 'supabase' && supabaseClient) {
+            // Remove from bucket if present
+            this.deleteConfessionFromBucket(id).catch(() => {});
+
             const { error } = await supabaseClient
                 .from('confessions')
                 .delete()
@@ -235,7 +268,6 @@ const dbService = {
         if (dbDriver === 'supabase' && supabaseClient) {
             const total = await this.countConfessions();
             
-            // Start of today in UTC
             const todayStart = new Date();
             todayStart.setUTCHours(0, 0, 0, 0);
 

@@ -1,5 +1,5 @@
 -- ====================================================================
--- SRU CONFESSIONS - SUPABASE DATABASE PERMISSIONS & SCHEMA
+-- SRU CONFESSIONS - SUPABASE SCHEMA & STORAGE BUCKET SETUP
 -- ====================================================================
 -- Instructions:
 -- 1. Open your Supabase SQL Editor:
@@ -35,11 +35,10 @@ GRANT ALL ON TABLE public.confessions TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.admins TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 
--- 5. Row Level Security (RLS) & Policies
+-- 5. Table Policies
 ALTER TABLE public.confessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 
--- Confessions Policies
 DROP POLICY IF EXISTS "Allow public insert to confessions" ON public.confessions;
 CREATE POLICY "Allow public insert to confessions" 
 ON public.confessions FOR INSERT 
@@ -58,7 +57,6 @@ ON public.confessions FOR DELETE
 TO anon, authenticated, service_role 
 USING (true);
 
--- Admins Policies
 DROP POLICY IF EXISTS "Allow read admins" ON public.admins;
 CREATE POLICY "Allow read admins" 
 ON public.admins FOR SELECT 
@@ -70,3 +68,31 @@ CREATE POLICY "Allow update admins"
 ON public.admins FOR UPDATE 
 TO anon, authenticated, service_role 
 USING (true);
+
+-- ====================================================================
+-- 6. CREATE STORAGE BUCKET FOR CONFESSIONS
+-- ====================================================================
+
+-- Create the public bucket 'confessions'
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('confessions', 'confessions', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Storage Policies for 'confessions' bucket
+DROP POLICY IF EXISTS "Allow public uploads to confessions bucket" ON storage.objects;
+CREATE POLICY "Allow public uploads to confessions bucket" 
+ON storage.objects FOR INSERT 
+TO anon, authenticated, service_role 
+WITH CHECK (bucket_id = 'confessions');
+
+DROP POLICY IF EXISTS "Allow public reads from confessions bucket" ON storage.objects;
+CREATE POLICY "Allow public reads from confessions bucket" 
+ON storage.objects FOR SELECT 
+TO anon, authenticated, service_role 
+USING (bucket_id = 'confessions');
+
+DROP POLICY IF EXISTS "Allow delete from confessions bucket" ON storage.objects;
+CREATE POLICY "Allow delete from confessions bucket" 
+ON storage.objects FOR DELETE 
+TO anon, authenticated, service_role 
+USING (bucket_id = 'confessions');
