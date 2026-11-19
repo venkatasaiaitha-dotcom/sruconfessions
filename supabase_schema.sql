@@ -1,11 +1,10 @@
 -- ====================================================================
--- SRU CONFESSIONS - SUPABASE DATABASE SCHEMA
+-- SRU CONFESSIONS - SUPABASE DATABASE PERMISSIONS & SCHEMA
 -- ====================================================================
--- Instructions for Supabase:
--- 1. Open your Supabase Dashboard: https://supabase.com/dashboard
--- 2. Select your project.
--- 3. Click "SQL Editor" on the left menu.
--- 4. Click "+ New query", paste this script, and click "Run" (Ctrl + Enter).
+-- Instructions:
+-- 1. Open your Supabase SQL Editor:
+--    https://supabase.com/dashboard/project/nssvgkwoiyysutlfmdjy/sql/new
+-- 2. Paste this entire script and click "Run" (Ctrl + Enter).
 -- ====================================================================
 
 -- 1. Create Confessions Table
@@ -25,48 +24,49 @@ CREATE TABLE IF NOT EXISTS public.admins (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Seed Default Admin Account
--- Username: admin
--- Password: sru2024
+-- 3. Seed Default Admin Account (admin / sru2024)
 INSERT INTO public.admins (username, password_hash)
 VALUES ('admin', '$2b$10$s0hL5nZ1J/FDbZPqtVUznewGfZTnZ55lGQ29m0DOng3A6yavG7NU2')
 ON CONFLICT (username) DO NOTHING;
 
--- 4. Enable Row Level Security (RLS)
+-- 4. GRANT PERMISSIONS TO ANON AND AUTHENTICATED ROLES
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.confessions TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.admins TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- 5. Row Level Security (RLS) & Policies
 ALTER TABLE public.confessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 
--- 5. Policies for Confessions Table
--- Allow anonymous users to submit confessions
+-- Confessions Policies
 DROP POLICY IF EXISTS "Allow public insert to confessions" ON public.confessions;
 CREATE POLICY "Allow public insert to confessions" 
 ON public.confessions FOR INSERT 
-TO anon, authenticated
+TO anon, authenticated, service_role
 WITH CHECK (true);
 
--- Allow reading confessions
 DROP POLICY IF EXISTS "Allow public read of confessions" ON public.confessions;
 CREATE POLICY "Allow public read of confessions" 
 ON public.confessions FOR SELECT 
-TO anon, authenticated 
+TO anon, authenticated, service_role 
 USING (true);
 
--- Allow deleting confessions
 DROP POLICY IF EXISTS "Allow delete confessions" ON public.confessions;
 CREATE POLICY "Allow delete confessions" 
 ON public.confessions FOR DELETE 
-TO anon, authenticated 
+TO anon, authenticated, service_role 
 USING (true);
 
--- 6. Policies for Admins Table
+-- Admins Policies
 DROP POLICY IF EXISTS "Allow read admins" ON public.admins;
 CREATE POLICY "Allow read admins" 
 ON public.admins FOR SELECT 
-TO anon, authenticated 
+TO anon, authenticated, service_role 
 USING (true);
 
 DROP POLICY IF EXISTS "Allow update admins" ON public.admins;
 CREATE POLICY "Allow update admins" 
 ON public.admins FOR UPDATE 
-TO anon, authenticated 
+TO anon, authenticated, service_role 
 USING (true);
