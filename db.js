@@ -13,12 +13,12 @@ let memoryStore = {
     nextAdminId: 1
 };
 
-// Safe writable directory for local or serverless (Vercel / AWS / Render)
-const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+// Safe writable directory for local or serverless (Vercel / AWS / Render / Netlify)
+const isServerless = Boolean(process.env.NETLIFY || process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const dataDir = isServerless ? path.join(os.tmpdir(), 'sru_confessions') : path.join(__dirname, 'data');
 
 // ====================================================================
-// 1. IN-MEMORY / JSON FALLBACK (Always Works Anywhere)
+// 1. IN-MEMORY / JSON FALLBACK (Zero-fail)
 // ====================================================================
 function initMemoryStore() {
     dbDriver = 'memory';
@@ -67,7 +67,7 @@ function initSqlite() {
 // 3. MYSQL IMPLEMENTATION (MySQL Workbench / Cloud MySQL)
 // ====================================================================
 async function initMysql() {
-    if (mysqlPool) return; // already initialized
+    if (mysqlPool) return;
     const mysql = require('mysql2/promise');
 
     const host = process.env.DB_HOST || 'localhost';
@@ -130,7 +130,7 @@ async function initMysql() {
 }
 
 // ====================================================================
-// INITIALIZATION ROUTINE (Mutex protected)
+// INITIALIZATION ROUTINE (Clean, no recursion, thread-safe)
 // ====================================================================
 let isInitialized = false;
 let initPromise = null;
@@ -145,8 +145,8 @@ async function initDb() {
         if (preference === 'mysql' && process.env.DB_PASSWORD) {
             try {
                 await initMysql();
-                await seedAdmin();
                 isInitialized = true;
+                await seedAdmin();
                 return;
             } catch (err) {
                 console.warn('⚠️  Could not connect to MySQL Server:', err.message);
@@ -155,35 +155,50 @@ async function initDb() {
         }
 
         initSqlite();
-        await seedAdmin();
         isInitialized = true;
+        await seedAdmin();
     })();
 
     return initPromise;
 }
 
-// Seed default admin
+// Seed default admin (directly queries active driver, NO recursive initDb calls)
 async function seedAdmin() {
     const adminUser = process.env.ADMIN_USERNAME || 'admin';
     const adminPass = process.env.ADMIN_PASSWORD || 'sru2024';
 
-    const existing = await dbService.getAdminByUsername(adminUser);
-    if (!existing) {
-        const hash = bcrypt.hashSync(adminPass, 10);
+    try {
         if (dbDriver === 'mysql' && mysqlPool) {
-            await mysqlPool.execute('INSERT INTO admins (username, password_hash) VALUES (?, ?)', [adminUser, hash]);
+            const [rows] = await mysqlPool.execute('SELECT id FROM admins WHERE username = ?', [adminUser]);
+            if (!rows.length) {
+                const hash = bcrypt.hashSync(adminPass, 10);
+                await mysqlPool.execute('INSERT INTO admins (username, password_hash) VALUES (?, ?)', [adminUser, hash]);
+                console.log(`[Database] Seeded initial admin account "${adminUser}".`);
+            }
         } else if (dbDriver === 'sqlite' && sqliteDb) {
-            const stmt = sqliteDb.prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)');
-            stmt.run(adminUser, hash);
+            const stmt = sqliteDb.prepare('SELECT id FROM admins WHERE username = ?');
+            const existing = stmt.get(adminUser);
+            if (!existing) {
+                const hash = bcrypt.hashSync(adminPass, 10);
+                const ins = sqliteDb.prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)');
+                ins.run(adminUser, hash);
+                console.log(`[Database] Seeded initial admin account "${adminUser}".`);
+            }
         } else {
-            memoryStore.admins.push({
-                id: memoryStore.nextAdminId++,
-                username: adminUser,
-                password_hash: hash,
-                created_at: new Date().toISOString()
-            });
+            const existing = memoryStore.admins.find(a => a.username === adminUser);
+            if (!existing) {
+                const hash = bcrypt.hashSync(adminPass, 10);
+                memoryStore.admins.push({
+                    id: memoryStore.nextAdminId++,
+                    username: adminUser,
+                    password_hash: hash,
+                    created_at: new Date().toISOString()
+                });
+                console.log(`[Database] Seeded initial admin account "${adminUser}".`);
+            }
         }
-        console.log(`[Database] Seeded initial admin account "${adminUser}".`);
+    } catch (e) {
+        console.error('[Database] Admin seed error:', e.message);
     }
 }
 
