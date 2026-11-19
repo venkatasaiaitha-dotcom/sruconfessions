@@ -97,15 +97,27 @@ async function seedAdmin() {
 // 3. UNIFIED DATABASE SERVICES & STORAGE BUCKET INTEGRATION
 // ====================================================================
 const dbService = {
-    // Helper: Upload confession JSON to Supabase Storage Bucket
+    // Helper: Upload confession text and JSON to Supabase Storage Bucket
     async saveConfessionToBucket(item) {
         if (!supabaseClient || !item || !item.id) return;
         try {
-            const fileName = `confession_${item.id}.json`;
-            const fileBody = JSON.stringify(item, null, 2);
+            // 1. Upload Readable Plain Text File (.txt)
+            const txtFileName = `confession_${item.id}.txt`;
+            const txtContent = `CONFESSION #${item.id}\nDate: ${item.created_at}\nStatus: ${item.status || 'approved'}\n----------------------------------------\n${item.confession}\n`;
+            
             await supabaseClient.storage
                 .from('confessions')
-                .upload(fileName, fileBody, {
+                .upload(txtFileName, txtContent, {
+                    contentType: 'text/plain; charset=utf-8',
+                    upsert: true
+                });
+
+            // 2. Upload Structured JSON File (.json)
+            const jsonFileName = `confession_${item.id}.json`;
+            const jsonBody = JSON.stringify(item, null, 2);
+            await supabaseClient.storage
+                .from('confessions')
+                .upload(jsonFileName, jsonBody, {
                     contentType: 'application/json',
                     upsert: true
                 });
@@ -114,13 +126,13 @@ const dbService = {
         }
     },
 
-    // Helper: Remove confession from Supabase Storage Bucket
+    // Helper: Remove confession files from Supabase Storage Bucket
     async deleteConfessionFromBucket(id) {
         if (!supabaseClient || !id) return;
         try {
             await supabaseClient.storage
                 .from('confessions')
-                .remove([`confession_${id}.json`]);
+                .remove([`confession_${id}.txt`, `confession_${id}.json`]);
         } catch (err) {
             console.warn('[Storage Bucket] Could not delete from bucket:', err.message);
         }
@@ -148,7 +160,7 @@ const dbService = {
                 created_at: new Date().toISOString()
             };
 
-            // Store copy in Supabase Storage Bucket
+            // Store copies in Supabase Storage Bucket (.txt and .json)
             this.saveConfessionToBucket(item).catch(() => {});
 
             return item;
