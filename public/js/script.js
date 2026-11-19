@@ -1,6 +1,10 @@
 // SRU Confessions - Client API Integration
 
-const API_BASE = '';
+// If opened directly as a file (file://), target local backend server on port 5000
+const API_BASE = (typeof window !== 'undefined' && window.location.protocol === 'file:') 
+    ? 'http://localhost:5000' 
+    : '';
+
 let currentSearch = '';
 let searchDebounceTimeout = null;
 
@@ -26,7 +30,7 @@ async function parseResponse(res) {
         }
     }
     const text = await res.text();
-    return { error: text || `Server error (${res.status} ${res.statusText})` };
+    return { error: text || `Server error (${res.status} ${res.statusText || 'Not Found'})` };
 }
 
 // Helper: Display Alert Toast inside Form
@@ -43,7 +47,7 @@ function showAlert(formElement, message, isSuccess = true) {
 
     setTimeout(() => {
         msgDiv.remove();
-    }, 5000);
+    }, 6000);
 }
 
 // -------------------------------------------------------------------
@@ -93,7 +97,11 @@ if (feedbackForm) {
             const data = await parseResponse(res);
 
             if (!res.ok) {
-                throw new Error(data.error || `Error ${res.status}: Failed to submit confession.`);
+                let errText = data.error || `Error ${res.status}: Failed to submit confession.`;
+                if (res.status === 404 && window.location.protocol === 'file:') {
+                    errText = 'Backend is not running. Please run "npm start" in terminal and open http://localhost:5000';
+                }
+                throw new Error(errText);
             }
 
             showAlert(feedbackForm, '✨ Confession submitted successfully and anonymously!', true);
@@ -102,7 +110,11 @@ if (feedbackForm) {
 
         } catch (err) {
             console.error('Submission error:', err);
-            showAlert(feedbackForm, err.message || 'Network error occurred. Please try again.', false);
+            let userMsg = err.message;
+            if (err.message && err.message.includes('Failed to fetch')) {
+                userMsg = 'Cannot connect to backend server. Please make sure the server is running with "npm start" at http://localhost:5000';
+            }
+            showAlert(feedbackForm, userMsg, false);
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
@@ -352,7 +364,6 @@ function logout() {
 // 4. MODAL CONTROLS
 // -------------------------------------------------------------------
 async function openAdminModal() {
-    // If already authenticated, jump straight to admin panel
     const isAuthenticated = await checkAuthSession();
     if (isAuthenticated) {
         showAdminPanel();
