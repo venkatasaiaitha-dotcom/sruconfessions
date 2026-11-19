@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 
 // Security Middleware
 app.use(helmet({
-    contentSecurityPolicy: false, // Allows Google Fonts and frontend scripts smoothly
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
 }));
 
@@ -33,13 +33,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/css', express.static(path.join(__dirname, 'public/css')));
 app.use('/js', express.static(path.join(__dirname, 'public/js')));
 
-// API Routes
+// API Routes: mount both /api/* and bare routes for Vercel/serverless compatibility
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/confessions', confessionRoutes);
+app.use('/confessions', confessionRoutes);
+
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
 
 // Health Check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
     res.json({
         status: 'ok',
         database: db.getDriver(),
